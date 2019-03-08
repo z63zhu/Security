@@ -1,0 +1,76 @@
+#!/usr/bin/env python
+#coding: utf-8
+
+import base64
+import httplib2
+import sys
+
+def oracle(check):
+	http = httplib2.Http(".cache")
+	cookie = base64.b64encode(str(check))
+	header = {"Cookie":"user=" + cookie}
+	response,content = http.request("http://localhost:4555","GET",headers= header)
+	if (response.status == 200):
+		return True
+	else:
+		return False
+
+def main():
+	encrypted_message = list(bytearray(base64.b64decode(sys.argv[1])))
+	decrypted_message = []
+	block_num = len(encrypted_message) / 16
+
+	#3.3 Decryption Oracle
+	for b_num in range(1, block_num): #for each block
+		# 3.1 Last Word Oracle
+		#1. pick a few random words r1,...,rb and take i = 0
+		#2. pickr=r1...rb−1(rb+i)
+		#3. if O(r|y) = 0 then increment i and go back to the previous step 
+		#4. replace rb by rb + i
+		y = encrypted_message[b_num*16 : b_num*16 + 16]
+		r = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+		a = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+		for i in range(0, 256):
+			r[15] = i;
+			if oracle(bytearray(r) + bytearray(y)) == True:
+				break;
+		#5. for n=b down to 2 do		
+		#(a) taker=r1...rb−n(rb−n+1+1)rb−n+2...rb
+		#(b) if O(r|y)=0 then stop and output (rb−n+1+ 1 ) (rb−n+2 + 0)…(rb+ 0 ) 
+		#6. output rb + 1
+		modified = 15
+		for n in range(0, 14):
+			r[n] ^= 1
+			if oracle(bytearray(r) + bytearray(y)) == False:
+				modified = n
+ 				a[n] = r[n] ^ 1
+ 				for k in range(n + 1, 16):
+ 					a[k] = r[k]
+				break;
+		if modified == 15:
+			a[15] = r[15] ^ 1;
+		
+		#3.2 Block Decryption Oracle
+		for j in reversed(range(0, modified)): #j from 14 to for each r[j]
+			#1. (1) take rk =ak + 0 for k=j,…,b 
+			#2. pick r1,...,rj−1 at random and take i = 0
+			for acc in range(j + 1 ,16):
+				r[acc] = a[acc]
+			#3. taker=r1...rj−2(rj−1+i)rj...rb
+			#4. if O(r|y) = 0 then increment i and go back to the previous step 
+			#5. output rj−1+i+1 
+			for i in range(0, 256):
+				r[j] = i;
+				if oracle(bytearray(r) + bytearray(y)) == True:
+					a[j] = r[j] ^ 1
+					break;
+		decrypted_message.extend(a)
+
+	#print message 
+	message = ""
+	for i in range(0, block_num -1):
+		for j in range(0, 16):
+			message += chr(encrypted_message[16 * i + j] ^ decrypted_message[16 * i + j])
+	print(message)
+
+main()
